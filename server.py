@@ -667,20 +667,23 @@ def internal_error(error):
     return jsonify({'error': 'Erreur interne du serveur'}), 500
 
 if __name__ == '__main__':
-    print("🚀 ANALYSEUR DE COURS INTELLIGENT v2.0")
+    # Configuration pour Render
+    port = int(os.environ.get('PORT', 5000))
+    debug_mode = os.environ.get('RENDER') is None  # Debug seulement en local
+    
+    print(f"🚀 ANALYSEUR DE COURS INTELLIGENT v2.0")
     print("="*50)
-    print("🔍 OCR: Tesseract (gratuit)")
+    print("📝 OCR: Tesseract (gratuit)")
     print("🤖 IA: Multi-provider (Mistral/HuggingFace/Ollama/Local)")
     print("💾 Stockage: En mémoire (session)")
     print("="*50)
     
-    # Démarrage selon l'environnement
-    if os.getenv('VERCEL'):
-        print("☁️ Mode VERCEL")
-    elif os.getenv('RAILWAY'):
-        print("🚂 Mode RAILWAY") 
+    if os.getenv('RENDER'):
+        print("☁️ Mode RENDER")
+        print(f"🌐 Port: {port}")
     else:
         print("💻 Mode DÉVELOPPEMENT LOCAL")
-        print("URL: http://127.0.0.1:5000")
-        app.run(host='127.0.0.1', port=5000, debug=True)
+        print(f"URL: http://127.0.0.1:{port}")
+    
+    app.run(host='0.0.0.0', port=port, debug=debug_mode)
 
