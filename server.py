@@ -54,52 +54,43 @@ class CourseAnalyzer:
             'es': 'spa+eng',
             'de': 'deu+eng'
         }
-
+    
     def enhance_image_for_ocr(self, image_data):
-        """Améliore la qualité de l'image pour un meilleur OCR"""
+        """Améliore la qualité de l'image pour un meilleur OCR - Version simplifiée"""
         try:
-            # Conversion en numpy array pour OpenCV
-            img_array = np.frombuffer(image_data, np.uint8)
-            img = cv2.imdecode(img_array, cv2.IMREAD_COLOR)
+            # Version simplifiée avec PIL seulement (sans OpenCV)
+            pil_image = Image.open(io.BytesIO(image_data))
             
-            if img is None:
-                # Fallback avec PIL
-                pil_image = Image.open(io.BytesIO(image_data))
-                img = cv2.cvtColor(np.array(pil_image), cv2.COLOR_RGB2BGR)
+            # Conversion en niveaux de gris
+            gray_image = pil_image.convert('L')
             
-            # Amélioration de l'image
-            # 1. Conversion en niveaux de gris
-            gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+            # Amélioration du contraste
+            enhanced = ImageEnhance.Contrast(gray_image).enhance(2.0)
             
-            # 2. Réduction du bruit
-            denoised = cv2.medianBlur(gray, 5)
+            # Amélioration de la netteté
+            sharpened = ImageEnhance.Sharpness(enhanced).enhance(1.5)
             
-            # 3. Amélioration du contraste
-            clahe = cv2.createCLAHE(clipLimit=3.0, tileGridSize=(8,8))
-            enhanced = clahe.apply(denoised)
-            
-            # 4. Binarisation adaptative
-            binary = cv2.adaptiveThreshold(
-                enhanced, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, 
-                cv2.THRESH_BINARY, 11, 2
-            )
-            
-            # 5. Morphologie pour nettoyer
-            kernel = np.ones((2,2), np.uint8)
-            cleaned = cv2.morphologyEx(binary, cv2.MORPH_CLOSE, kernel)
-            
-            return cleaned
+            return np.array(sharpened)
             
         except Exception as e:
             print(f"Erreur enhancement image: {e}")
-            # Fallback simple avec PIL
+            # Fallback direct
             try:
                 pil_image = Image.open(io.BytesIO(image_data))
-                enhanced = ImageEnhance.Contrast(pil_image).enhance(2.0)
-                enhanced = ImageEnhance.Sharpness(enhanced).enhance(1.5)
-                return np.array(enhanced.convert('L'))
+                return np.array(pil_image.convert('L'))
             except:
                 return None
+                
+            except Exception as e:
+                print(f"Erreur enhancement image: {e}")
+                # Fallback simple avec PIL
+                try:
+                    pil_image = Image.open(io.BytesIO(image_data))
+                    enhanced = ImageEnhance.Contrast(pil_image).enhance(2.0)
+                    enhanced = ImageEnhance.Sharpness(enhanced).enhance(1.5)
+                    return np.array(enhanced.convert('L'))
+                except:
+                    return None
 
     def extract_text_with_tesseract(self, image_data, language='fra+eng'):
         """Extraction de texte avec Tesseract OCR (gratuit)"""
