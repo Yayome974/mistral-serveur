@@ -1,0 +1,434 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Analyseur de Cours Intelligent v2.0</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Inter', sans-serif; }
+        .gradient-bg { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); }
+        .card-hover { transition: all 0.3s ease; }
+        .card-hover:hover { transform: translateY(-5px); box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1); }
+        .fade-in { animation: fadeIn 0.6s ease-in; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+        .pulse-slow { animation: pulse 3s cubic-bezier(0.4, 0, 0.6, 1) infinite; }
+        .tab-active { background: linear-gradient(135deg, #3b82f6, #1d4ed8); color: white; }
+        .quiz-level { transition: all 0.3s ease; }
+        .quiz-level:hover { background: linear-gradient(135deg, #f3f4f6, #e5e7eb); }
+    </style>
+</head>
+<body class="bg-gray-50 min-h-screen">
+
+    <!-- Header -->
+    <div class="gradient-bg text-white py-8 px-4">
+        <div class="max-w-6xl mx-auto text-center">
+            <h1 class="text-5xl font-bold mb-4">Analyseur de Cours Intelligent</h1>
+            <p class="text-xl opacity-90">OCR gratuit • IA multi-provider • Fonctionnalités avancées</p>
+        </div>
+    </div>
+
+    <div class="max-w-6xl mx-auto px-4 py-8">
+        
+        <!-- Section Upload -->
+        <div id="upload-section" class="fade-in">
+            <div class="bg-white rounded-2xl shadow-lg p-8 mb-8 card-hover">
+                
+                <!-- Status API -->
+                <div id="api-status" class="mb-6 p-4 bg-blue-50 rounded-lg border border-blue-200">
+                    <div class="flex items-center justify-between">
+                        <span class="text-sm font-medium text-blue-800">Vérification des services...</span>
+                        <div class="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-500"></div>
+                    </div>
+                </div>
+
+                <!-- Zone de Drop -->
+                <div class="drop-zone border-3 border-dashed border-gray-300 rounded-xl p-12 text-center cursor-pointer hover:border-blue-500 hover:bg-blue-50 transition-all duration-300" id="drop-zone">
+                    <input type="file" id="file-input" class="hidden" accept="image/*">
+                    <div class="mb-6">
+                        <svg class="mx-auto h-20 w-20 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+                        </svg>
+                    </div>
+                    <h3 class="text-2xl font-semibold text-gray-800 mb-2">Glissez votre image ici</h3>
+                    <p class="text-gray-600 mb-4">ou cliquez pour sélectionner un fichier</p>
+                    <p class="text-sm text-gray-500">Formats supportés : JPG, PNG, WebP, BMP, TIFF • Max 5 Mo</p>
+                </div>
+
+                <!-- Aperçu Image -->
+                <div id="image-preview-container" class="hidden mt-8 bg-gray-50 rounded-xl p-6">
+                    <div class="flex items-center justify-between mb-4">
+                        <span class="text-lg font-semibold text-gray-800">Aperçu de l'image</span>
+                        <button id="remove-image" class="text-red-500 hover:text-red-700 font-medium">
+                            Supprimer
+                        </button>
+                    </div>
+                    <img id="image-preview" class="w-full max-h-96 object-contain rounded-lg shadow" />
+                    <div class="mt-4 text-sm text-gray-600">
+                        <span>Taille: </span><span id="file-size" class="font-medium"></span>
+                    </div>
+                </div>
+
+                <!-- Options avancées -->
+                <div id="options-section" class="hidden mt-8 bg-gradient-to-r from-purple-50 to-pink-50 rounded-xl p-6">
+                    <h3 class="text-xl font-bold text-gray-800 mb-4">Options d'analyse</h3>
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Type de contenu</label>
+                            <select id="content-type" class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500">
+                                <option value="general">Détection automatique</option>
+                                <option value="mathematics">Mathématiques</option>
+                                <option value="physics">Physique</option>
+                                <option value="chemistry">Chimie</option>
+                                <option value="biology">Biologie</option>
+                                <option value="history">Histoire</option>
+                                <option value="literature">Littérature</option>
+                                <option value="philosophy">Philosophie</option>
+                                <option value="economics">Économie</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Niveau de détail</label>
+                            <select id="detail-level" class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500">
+                                <option value="concise">Concis</option>
+                                <option value="detailed" selected>Détaillé</option>
+                                <option value="comprehensive">Complet</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Langue du document</label>
+                            <select id="language" class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500">
+                                <option value="fr">Français</option>
+                                <option value="en">Anglais</option>
+                                <option value="es">Espagnol</option>
+                                <option value="de">Allemand</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Bouton d'analyse -->
+                <div class="mt-8">
+                    <button id="analyze-button" class="w-full bg-gradient-to-r from-purple-600 to-pink-600 text-white font-bold py-4 px-8 rounded-xl disabled:opacity-50 disabled:cursor-not-allowed hover:from-purple-700 hover:to-pink-700 transition-all duration-300 transform hover:scale-105 disabled:transform-none shadow-lg" disabled>
+                        <span class="flex items-center justify-center">
+                            <svg class="w-6 h-6 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"></path>
+                            </svg>
+                            Analyser avec l'IA
+                        </span>
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Section Résultats -->
+        <div id="results-section" class="hidden">
+            
+            <!-- Progress Bar -->
+            <div id="progress-container" class="mb-8 bg-white rounded-xl shadow-lg p-6">
+                <div class="flex items-center justify-between mb-4">
+                    <h3 class="text-xl font-bold text-gray-800">Analyse en cours</h3>
+                    <span id="progress-text" class="text-sm text-gray-600">0%</span>
+                </div>
+                <div class="w-full bg-gray-200 rounded-full h-3">
+                    <div id="progress-bar" class="bg-gradient-to-r from-purple-500 to-pink-500 h-3 rounded-full transition-all duration-500" style="width: 0%"></div>
+                </div>
+                <p id="progress-status" class="text-sm text-gray-600 mt-2">Initialisation...</p>
+            </div>
+
+            <!-- Tabs Navigation -->
+            <div class="bg-white rounded-t-2xl shadow-lg overflow-hidden">
+                <div class="border-b border-gray-200">
+                    <nav class="flex flex-wrap">
+                        <button class="tab-button px-6 py-4 text-sm font-medium transition-all duration-200 tab-active" data-tab="summary">📋 Résumé</button>
+                        <button class="tab-button px-6 py-4 text-sm font-medium text-gray-500 hover:text-gray-700 transition-all duration-200" data-tab="concepts">🎯 Concepts</button>
+                        <button class="tab-button px-6 py-4 text-sm font-medium text-gray-500 hover:text-gray-700 transition-all duration-200" data-tab="quiz">❓ Quiz</button>
+                        <button class="tab-button px-6 py-4 text-sm font-medium text-gray-500 hover:text-gray-700 transition-all duration-200" data-tab="mindmap">🧠 Carte mentale</button>
+                        <button class="tab-button px-6 py-4 text-sm font-medium text-gray-500 hover:text-gray-700 transition-all duration-200" data-tab="study">📅 Plan révision</button>
+                        <button class="tab-button px-6 py-4 text-sm font-medium text-gray-500 hover:text-gray-700 transition-all duration-200" data-tab="flashcards">🎴 Flashcards</button>
+                        <button class="tab-button px-6 py-4 text-sm font-medium text-gray-500 hover:text-gray-700 transition-all duration-200" data-tab="raw">📄 Texte OCR</button>
+                    </nav>
+                </div>
+
+                <!-- Tab Contents -->
+                <div class="p-8">
+                    
+                    <!-- Summary Tab -->
+                    <div id="tab-summary" class="tab-content">
+                        <div class="space-y-6">
+                            <div class="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl p-6">
+                                <h3 class="text-2xl font-bold text-gray-800 mb-4">📋 Résumé du cours</h3>
+                                <div id="summary-content" class="prose max-w-none text-gray-700"></div>
+                            </div>
+                            <div class="bg-gradient-to-r from-green-50 to-emerald-50 rounded-xl p-6">
+                                <h3 class="text-2xl font-bold text-gray-800 mb-4">📊 Analyse de niveau</h3>
+                                <div id="level-analysis-content" class="prose max-w-none text-gray-700"></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Concepts Tab -->
+                    <div id="tab-concepts" class="tab-content hidden">
+                        <div class="bg-gradient-to-r from-yellow-50 to-orange-50 rounded-xl p-6">
+                            <h3 class="text-2xl font-bold text-gray-800 mb-4">🎯 Concepts clés hiérarchisés</h3>
+                            <div id="concepts-content" class="prose max-w-none text-gray-700"></div>
+                        </div>
+                    </div>
+
+                    <!-- Quiz Tab -->
+                    <div id="tab-quiz" class="tab-content hidden">
+                        <div class="space-y-6">
+                            <h3 class="text-2xl font-bold text-gray-800 mb-6">❓ Quiz progressif interactif</h3>
+                            
+                            <!-- Quiz Level Selector -->
+                            <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
+                                <div class="quiz-level bg-green-100 border-2 border-green-300 rounded-xl p-4 cursor-pointer text-center" data-level="easy">
+                                    <div class="text-2xl mb-2">🟢</div>
+                                    <h4 class="font-bold text-green-800">Niveau Facile</h4>
+                                    <p class="text-sm text-green-600">Questions de base</p>
+                                </div>
+                                <div class="quiz-level bg-yellow-100 border-2 border-yellow-300 rounded-xl p-4 cursor-pointer text-center" data-level="medium">
+                                    <div class="text-2xl mb-2">🟡</div>
+                                    <h4 class="font-bold text-yellow-800">Niveau Moyen</h4>
+                                    <p class="text-sm text-yellow-600">Application des concepts</p>
+                                </div>
+                                <div class="quiz-level bg-red-100 border-2 border-red-300 rounded-xl p-4 cursor-pointer text-center" data-level="hard">
+                                    <div class="text-2xl mb-2">🔴</div>
+                                    <h4 class="font-bold text-red-800">Niveau Difficile</h4>
+                                    <p class="text-sm text-red-600">Analyse et synthèse</p>
+                                </div>
+                            </div>
+                            
+                            <!-- Quiz Content -->
+                            <div id="quiz-content" class="bg-white border-2 border-gray-200 rounded-xl p-6">
+                                <p class="text-gray-500 text-center">Sélectionnez un niveau de difficulté pour commencer le quiz</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Mind Map Tab -->
+                    <div id="tab-mindmap" class="tab-content hidden">
+                        <div class="bg-gradient-to-r from-purple-50 to-pink-50 rounded-xl p-6">
+                            <h3 class="text-2xl font-bold text-gray-800 mb-4">🧠 Carte mentale textuelle</h3>
+                            <div id="mindmap-content" class="font-mono text-sm bg-white rounded-lg p-4 border-2 border-gray-200 overflow-x-auto"></div>
+                        </div>
+                    </div>
+
+                    <!-- Study Plan Tab -->
+                    <div id="tab-study" class="tab-content hidden">
+                        <div class="space-y-6">
+                            <div class="bg-gradient-to-r from-indigo-50 to-blue-50 rounded-xl p-6">
+                                <h3 class="text-2xl font-bold text-gray-800 mb-4">📅 Plan de révision personnalisé</h3>
+                                <div id="study-plan-content" class="prose max-w-none text-gray-700"></div>
+                            </div>
+                            <div class="bg-gradient-to-r from-pink-50 to-rose-50 rounded-xl p-6">
+                                <h3 class="text-2xl font-bold text-gray-800 mb-4">🧠 Techniques de mémorisation</h3>
+                                <div id="mnemonics-content" class="prose max-w-none text-gray-700"></div>
+                            </div>
+                            <div class="bg-gradient-to-r from-cyan-50 to-teal-50 rounded-xl p-6">
+                                <h3 class="text-2xl font-bold text-gray-800 mb-4">📚 Ressources complémentaires</h3>
+                                <div id="resources-content" class="prose max-w-none text-gray-700"></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Flashcards Tab -->
+                    <div id="tab-flashcards" class="tab-content hidden">
+                        <div class="space-y-4">
+                            <div class="flex items-center justify-between">
+                                <h3 class="text-2xl font-bold text-gray-800">🎴 Fiches de révision interactives</h3>
+                                <div class="text-sm text-gray-600">
+                                    <span>Fiche </span>
+                                    <span id="current-flashcard">1</span>
+                                    <span> / </span>
+                                    <span id="total-flashcards">0</span>
+                                </div>
+                            </div>
+                            <div id="flashcards-container" class="min-h-96"></div>
+                            <div class="flex justify-between">
+                                <button id="prev-flashcard" class="bg-gray-500 text-white px-6 py-2 rounded-lg hover:bg-gray-600 disabled:opacity-50" disabled>Précédente</button>
+                                <button id="next-flashcard" class="bg-blue-500 text-white px-6 py-2 rounded-lg hover:bg-blue-600 disabled:opacity-50" disabled>Suivante</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Raw Text Tab -->
+                    <div id="tab-raw" class="tab-content hidden">
+                        <div class="bg-gray-50 rounded-xl p-6">
+                            <h3 class="text-2xl font-bold text-gray-800 mb-4">📄 Texte extrait (OCR)</h3>
+                            <div class="bg-white rounded-lg p-4 border-2 border-gray-200 max-h-96 overflow-y-auto">
+                                <pre id="raw-text-content" class="text-sm text-gray-700 whitespace-pre-wrap"></pre>
+                            </div>
+                        </div>
+                    </div>
+
+                </div>
+            </div>
+
+            <!-- Action Buttons -->
+            <div class="mt-8 bg-white rounded-2xl shadow-lg p-6">
+                <div class="flex flex-col sm:flex-row gap-4">
+                    <button id="download-button" class="flex-1 bg-gradient-to-r from-green-500 to-emerald-500 text-white font-bold py-3 px-6 rounded-xl hover:from-green-600 hover:to-emerald-600 transition-all duration-300">
+                        📥 Télécharger l'analyse
+                    </button>
+                    <button id="reset-button" class="flex-1 bg-gradient-to-r from-gray-500 to-slate-500 text-white font-bold py-3 px-6 rounded-xl hover:from-gray-600 hover:to-slate-600 transition-all duration-300">
+                        🔄 Nouvelle analyse
+                    </button>
+                </div>
+            </div>
+
+        </div>
+
+        <!-- Error Section -->
+        <div id="error-section" class="hidden mt-8 bg-red-50 border-2 border-red-200 rounded-2xl p-6">
+            <div class="flex items-center">
+                <svg class="w-8 h-8 text-red-500 mr-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                </svg>
+                <div>
+                    <h3 class="text-lg font-bold text-red-800">Erreur d'analyse</h3>
+                    <p id="error-message" class="text-red-700 mt-2"></p>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    <script>
+        // Variables globales
+        let currentFile = null;
+        let analysisData = {};
+        let currentFlashcard = 0;
+        let flashcards = [];
+
+        // DOM Elements
+        const elements = {
+            fileInput: document.getElementById('file-input'),
+            dropZone: document.getElementById('drop-zone'),
+            analyzeButton: document.getElementById('analyze-button'),
+            resetButton: document.getElementById('reset-button'),
+            downloadButton: document.getElementById('download-button'),
+            uploadSection: document.getElementById('upload-section'),
+            resultsSection: document.getElementById('results-section'),
+            errorSection: document.getElementById('error-section'),
+            imagePreviewContainer: document.getElementById('image-preview-container'),
+            imagePreview: document.getElementById('image-preview'),
+            fileSizeSpan: document.getElementById('file-size'),
+            optionsSection: document.getElementById('options-section'),
+            apiStatus: document.getElementById('api-status'),
+            progressContainer: document.getElementById('progress-container'),
+            progressBar: document.getElementById('progress-bar'),
+            progressText: document.getElementById('progress-text'),
+            progressStatus: document.getElementById('progress-status')
+        };
+
+        // Initialisation
+        document.addEventListener('DOMContentLoaded', function() {
+            checkAPIStatus();
+            initializeEventListeners();
+            initializeTabs();
+            initializeQuiz();
+            initializeFlashcards();
+        });
+
+        // Vérification du statut des APIs
+        async function checkAPIStatus() {
+            try {
+                const response = await fetch('/health');
+                const data = await response.json();
+                
+                let statusHTML = '<div class="flex items-center justify-between"><div class="space-y-1">';
+                statusHTML += `<div class="text-sm"><span class="${data.services.tesseract_ocr ? 'text-green-600' : 'text-red-600'}">●</span> OCR Tesseract ${data.services.tesseract_ocr ? 'OK' : 'Indisponible'}</div>`;
+                statusHTML += `<div class="text-sm"><span class="${data.services.mistral_api ? 'text-green-600' : 'text-orange-600'}">●</span> Mistral API ${data.services.mistral_api ? 'OK' : 'Non configuré'}</div>`;
+                statusHTML += `<div class="text-sm"><span class="${data.services.ollama_local ? 'text-green-600' : 'text-gray-400'}">●</span> Ollama Local ${data.services.ollama_local ? 'OK' : 'Optionnel'}</div>`;
+                statusHTML += '</div><div class="text-xs text-gray-500">Services prêts</div></div>';
+                
+                elements.apiStatus.innerHTML = statusHTML;
+                elements.apiStatus.className = 'mb-6 p-4 bg-green-50 rounded-lg border border-green-200';
+                
+            } catch (error) {
+                elements.apiStatus.innerHTML = '<div class="text-red-700 font-medium">Erreur de connexion au serveur</div>';
+                elements.apiStatus.className = 'mb-6 p-4 bg-red-50 rounded-lg border border-red-200';
+            }
+        }
+
+        // Initialisation des event listeners
+        function initializeEventListeners() {
+            // File handling
+            elements.dropZone.addEventListener('click', () => elements.fileInput.click());
+            elements.fileInput.addEventListener('change', handleFileSelect);
+            document.getElementById('remove-image').addEventListener('click', clearFile);
+
+            // Drag and drop
+            ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+                elements.dropZone.addEventListener(eventName, preventDefaults, false);
+            });
+
+            function preventDefaults(e) {
+                e.preventDefault();
+                e.stopPropagation();
+            }
+
+            ['dragenter', 'dragover'].forEach(eventName => {
+                elements.dropZone.addEventListener(eventName, () => {
+                    elements.dropZone.classList.add('border-blue-500', 'bg-blue-50');
+                }, false);
+            });
+
+            ['dragleave', 'drop'].forEach(eventName => {
+                elements.dropZone.addEventListener(eventName, () => {
+                    elements.dropZone.classList.remove('border-blue-500', 'bg-blue-50');
+                }, false);
+            });
+
+            elements.dropZone.addEventListener('drop', handleFileDrop);
+
+            // Buttons
+            elements.analyzeButton.addEventListener('click', analyzeDocument);
+            elements.resetButton.addEventListener('click', resetAnalysis);
+            elements.downloadButton.addEventListener('click', downloadAnalysis);
+        }
+
+        // Gestion des fichiers
+        function handleFileSelect(e) {
+            const file = e.target.files[0];
+            if (file) processFile(file);
+        }
+
+        function handleFileDrop(e) {
+            const files = e.dataTransfer.files;
+            if (files.length > 0) processFile(files[0]);
+        }
+
+        function processFile(file) {
+            if (!file.type.startsWith('image/')) {
+                showError('Veuillez sélectionner un fichier image valide.');
+                return;
+            }
+
+            if (file.size > 5 * 1024 * 1024) {
+                showError('Le fichier est trop volumineux (maximum 5 Mo).');
+                return;
+            }
+
+            currentFile = file;
+            
+            // Affichage de l'aperçu
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                elements.imagePreview.src = e.target.result;
+                elements.fileSizeSpan.textContent = formatFileSize(file.size);
+                elements.imagePreviewContainer.classList.remove('hidden');
+                elements.optionsSection.classList.remove('hidden');
+                elements.analyzeButton.disabled = false;
+            };
+            reader.readAsDataURL(file);
+        }
+
+        function clearFile() {
+            currentFile = null;
+            elements.imagePreviewContainer.classList.add('hidden');
+            elements.optionsSection.classList.add('hidden');
+            elements.fileInput.value = '';
+            elements.analyzeButton.disabled = true;
