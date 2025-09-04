@@ -3,3 +3,5 @@ pillow
 pytesseract
 requests
 python-dotenv
+opencv-python-headless
+numpy
