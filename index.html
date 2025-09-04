@@ -17,6 +17,42 @@
         .tab-active { background: linear-gradient(135deg, #3b82f6, #1d4ed8); color: white; }
         .quiz-level { transition: all 0.3s ease; }
         .quiz-level:hover { background: linear-gradient(135deg, #f3f4f6, #e5e7eb); }
+        .flashcard { 
+            perspective: 1000px; 
+            height: 300px; 
+        }
+        .flashcard-inner {
+            position: relative;
+            width: 100%;
+            height: 100%;
+            text-align: center;
+            transition: transform 0.6s;
+            transform-style: preserve-3d;
+        }
+        .flashcard.flipped .flashcard-inner {
+            transform: rotateY(180deg);
+        }
+        .flashcard-front, .flashcard-back {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            backface-visibility: hidden;
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+        }
+        .flashcard-front {
+            background: linear-gradient(135deg, #3b82f6, #1d4ed8);
+            color: white;
+        }
+        .flashcard-back {
+            background: linear-gradient(135deg, #10b981, #047857);
+            color: white;
+            transform: rotateY(180deg);
+        }
     </style>
 </head>
 <body class="bg-gray-50 min-h-screen">
@@ -270,7 +306,7 @@
             <div class="mt-8 bg-white rounded-2xl shadow-lg p-6">
                 <div class="flex flex-col sm:flex-row gap-4">
                     <button id="download-button" class="flex-1 bg-gradient-to-r from-green-500 to-emerald-500 text-white font-bold py-3 px-6 rounded-xl hover:from-green-600 hover:to-emerald-600 transition-all duration-300">
-                        📥 Télécharger l'analyse
+                        💾 Télécharger l'analyse
                     </button>
                     <button id="reset-button" class="flex-1 bg-gradient-to-r from-gray-500 to-slate-500 text-white font-bold py-3 px-6 rounded-xl hover:from-gray-600 hover:to-slate-600 transition-all duration-300">
                         🔄 Nouvelle analyse
@@ -299,8 +335,11 @@
         // Variables globales
         let currentFile = null;
         let analysisData = {};
-        let currentFlashcard = 0;
+        let currentFlashcardIndex = 0;
         let flashcards = [];
+        let quizData = {};
+        let currentQuizLevel = null;
+        let currentQuestionIndex = 0;
 
         // DOM Elements
         const elements = {
@@ -325,7 +364,12 @@
 
         // Initialisation
         document.addEventListener('DOMContentLoaded', function() {
-            checkAPIStatus();
+            console.log('🚀 Interface chargée');
+            console.log('🔍 Tentative de connexion au serveur...');
+            
+            // Vérification différée pour laisser le temps au serveur
+            setTimeout(checkAPIStatus, 1000);
+            
             initializeEventListeners();
             initializeTabs();
             initializeQuiz();
@@ -432,3 +476,369 @@
             elements.optionsSection.classList.add('hidden');
             elements.fileInput.value = '';
             elements.analyzeButton.disabled = true;
+        }
+
+        function formatFileSize(bytes) {
+            if (bytes === 0) return '0 Bytes';
+            const k = 1024;
+            const sizes = ['Bytes', 'Ko', 'Mo'];
+            const i = Math.floor(Math.log(bytes) / Math.log(k));
+            return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+        }
+
+        // Analyse du document
+        async function analyzeDocument() {
+            if (!currentFile) {
+                showError('Veuillez sélectionner un fichier image.');
+                return;
+            }
+
+            showProgressSection();
+            updateProgress(10, 'Préparation de l\'analyse...');
+
+            try {
+                const formData = new FormData();
+                formData.append('file', currentFile);
+                formData.append('content_type', document.getElementById('content-type').value);
+                formData.append('detail_level', document.getElementById('detail-level').value);
+                formData.append('language', document.getElementById('language').value);
+
+                updateProgress(30, 'Extraction du texte (OCR)...');
+
+                const response = await fetch('/analyze', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                updateProgress(60, 'Analyse par IA en cours...');
+
+                if (!response.ok) {
+                    throw new Error(`Erreur HTTP: ${response.status}`);
+                }
+
+                const data = await response.json();
+                updateProgress(90, 'Finalisation...');
+
+                if (data.success) {
+                    analysisData = data;
+                    flashcards = data.flashcards || [];
+                    parseQuizData(data.progressive_quiz);
+                    
+                    updateProgress(100, 'Analyse terminée !');
+                    setTimeout(() => {
+                        showResults(data);
+                    }, 1000);
+                } else {
+                    throw new Error(data.error || 'Erreur inconnue');
+                }
+
+            } catch (error) {
+                console.error('Erreur analyse:', error);
+                showError(`Erreur d'analyse: ${error.message}`);
+            }
+        }
+
+        // Affichage de la section de progression
+        function showProgressSection() {
+            elements.uploadSection.classList.add('hidden');
+            elements.resultsSection.classList.remove('hidden');
+            elements.progressContainer.classList.remove('hidden');
+            hideError();
+        }
+
+        // Mise à jour de la progression
+        function updateProgress(percentage, status) {
+            elements.progressBar.style.width = `${percentage}%`;
+            elements.progressText.textContent = `${percentage}%`;
+            elements.progressStatus.textContent = status;
+        }
+
+        // Affichage des résultats
+        function showResults(data) {
+            elements.progressContainer.classList.add('hidden');
+            
+            // Remplir les contenus
+            document.getElementById('summary-content').innerHTML = formatContent(data.summary);
+            document.getElementById('level-analysis-content').innerHTML = formatContent(data.level_analysis);
+            document.getElementById('concepts-content').innerHTML = formatContent(data.concepts);
+            document.getElementById('mindmap-content').innerHTML = `<pre>${data.mind_map}</pre>`;
+            document.getElementById('study-plan-content').innerHTML = formatContent(data.study_plan);
+            document.getElementById('mnemonics-content').innerHTML = formatContent(data.mnemonics);
+            document.getElementById('resources-content').innerHTML = formatContent(data.resources);
+            document.getElementById('raw-text-content').textContent = data.raw_text;
+            
+            setupFlashcards();
+        }
+
+        // Formatage du contenu markdown
+        function formatContent(content) {
+            if (!content) return '<p class="text-gray-500">Contenu non disponible</p>';
+            
+            // Simple formatage markdown
+            return content
+                .replace(/^### (.*$)/gim, '<h3 class="text-lg font-bold mt-4 mb-2">$1</h3>')
+                .replace(/^## (.*$)/gim, '<h2 class="text-xl font-bold mt-6 mb-3">$1</h2>')
+                .replace(/^\* (.*$)/gim, '<li class="ml-4">$1</li>')
+                .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+                .replace(/\*(.*?)\*/g, '<em>$1</em>')
+                .replace(/\n\n/g, '</p><p class="mb-2">')
+                .replace(/^/, '<p class="mb-2">')
+                .replace(/$/, '</p>');
+        }
+
+        // Gestion des onglets
+        function initializeTabs() {
+            const tabButtons = document.querySelectorAll('.tab-button');
+            const tabContents = document.querySelectorAll('.tab-content');
+
+            tabButtons.forEach(button => {
+                button.addEventListener('click', () => {
+                    const targetTab = button.getAttribute('data-tab');
+                    
+                    // Reset all tabs
+                    tabButtons.forEach(btn => {
+                        btn.classList.remove('tab-active');
+                        btn.classList.add('text-gray-500', 'hover:text-gray-700');
+                    });
+                    
+                    tabContents.forEach(content => {
+                        content.classList.add('hidden');
+                    });
+                    
+                    // Activate selected tab
+                    button.classList.add('tab-active');
+                    button.classList.remove('text-gray-500', 'hover:text-gray-700');
+                    document.getElementById(`tab-${targetTab}`).classList.remove('hidden');
+                });
+            });
+        }
+
+        // Initialisation du quiz
+        function initializeQuiz() {
+            const quizLevels = document.querySelectorAll('.quiz-level');
+            
+            quizLevels.forEach(level => {
+                level.addEventListener('click', () => {
+                    const selectedLevel = level.getAttribute('data-level');
+                    loadQuizLevel(selectedLevel);
+                    
+                    // Visual feedback
+                    quizLevels.forEach(l => l.classList.remove('ring-2', 'ring-blue-500'));
+                    level.classList.add('ring-2', 'ring-blue-500');
+                });
+            });
+        }
+
+        // Parse les données du quiz
+        function parseQuizData(quizText) {
+            if (!quizText) return;
+            
+            quizData = { easy: [], medium: [], hard: [] };
+            
+            const sections = {
+                'easy': /### Niveau Facile:(.*?)(?=### Niveau|$)/s,
+                'medium': /### Niveau Moyen:(.*?)(?=### Niveau|$)/s,
+                'hard': /### Niveau Difficile:(.*?)(?=### Niveau|$)/s
+            };
+            
+            Object.keys(sections).forEach(level => {
+                const match = quizText.match(sections[level]);
+                if (match) {
+                    const questions = match[1].trim().split(/\d+\./).filter(q => q.trim());
+                    quizData[level] = questions.map(q => q.trim());
+                }
+            });
+        }
+
+        // Chargement d'un niveau de quiz
+        function loadQuizLevel(level) {
+            currentQuizLevel = level;
+            currentQuestionIndex = 0;
+            
+            const questions = quizData[level] || [];
+            if (questions.length === 0) {
+                document.getElementById('quiz-content').innerHTML = 
+                    '<p class="text-gray-500 text-center">Aucune question disponible pour ce niveau</p>';
+                return;
+            }
+            
+            displayQuestion(questions[currentQuestionIndex]);
+        }
+
+        // Affichage d'une question
+        function displayQuestion(question) {
+            const questions = quizData[currentQuizLevel];
+            const quizContainer = document.getElementById('quiz-content');
+            
+            quizContainer.innerHTML = `
+                <div class="space-y-4">
+                    <div class="flex justify-between text-sm text-gray-600">
+                        <span>Question ${currentQuestionIndex + 1} / ${questions.length}</span>
+                        <span>Niveau: ${currentQuizLevel}</span>
+                    </div>
+                    <div class="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg p-6">
+                        <p class="text-lg font-medium text-gray-800">${question}</p>
+                    </div>
+                    <div class="flex justify-between">
+                        <button id="prev-question" class="bg-gray-500 text-white px-4 py-2 rounded-lg hover:bg-gray-600 disabled:opacity-50" 
+                                ${currentQuestionIndex === 0 ? 'disabled' : ''}>
+                            Précédente
+                        </button>
+                        <button id="next-question" class="bg-blue-500 text-white px-4 py-2 rounded-lg hover:bg-blue-600 disabled:opacity-50"
+                                ${currentQuestionIndex === questions.length - 1 ? 'disabled' : ''}>
+                            Suivante
+                        </button>
+                    </div>
+                </div>
+            `;
+            
+            // Event listeners pour navigation
+            document.getElementById('prev-question')?.addEventListener('click', () => {
+                if (currentQuestionIndex > 0) {
+                    currentQuestionIndex--;
+                    displayQuestion(questions[currentQuestionIndex]);
+                }
+            });
+            
+            document.getElementById('next-question')?.addEventListener('click', () => {
+                if (currentQuestionIndex < questions.length - 1) {
+                    currentQuestionIndex++;
+                    displayQuestion(questions[currentQuestionIndex]);
+                }
+            });
+        }
+
+        // Initialisation des flashcards
+        function initializeFlashcards() {
+            const prevButton = document.getElementById('prev-flashcard');
+            const nextButton = document.getElementById('next-flashcard');
+            
+            prevButton.addEventListener('click', () => {
+                if (currentFlashcardIndex > 0) {
+                    currentFlashcardIndex--;
+                    displayFlashcard();
+                }
+            });
+            
+            nextButton.addEventListener('click', () => {
+                if (currentFlashcardIndex < flashcards.length - 1) {
+                    currentFlashcardIndex++;
+                    displayFlashcard();
+                }
+            });
+        }
+
+        // Configuration des flashcards
+        function setupFlashcards() {
+            if (!flashcards || flashcards.length === 0) {
+                document.getElementById('flashcards-container').innerHTML = 
+                    '<p class="text-gray-500 text-center">Aucune flashcard générée</p>';
+                return;
+            }
+            
+            document.getElementById('total-flashcards').textContent = flashcards.length;
+            currentFlashcardIndex = 0;
+            displayFlashcard();
+        }
+
+        // Affichage d'une flashcard
+        function displayFlashcard() {
+            if (!flashcards || flashcards.length === 0) return;
+            
+            const flashcard = flashcards[currentFlashcardIndex];
+            const container = document.getElementById('flashcards-container');
+            
+            container.innerHTML = `
+                <div class="flashcard cursor-pointer" onclick="flipFlashcard(this)">
+                    <div class="flashcard-inner">
+                        <div class="flashcard-front">
+                            <div class="text-center">
+                                <h4 class="text-xl font-bold mb-4">Question</h4>
+                                <p class="text-lg">${flashcard.question}</p>
+                                <p class="text-sm mt-4 opacity-75">Cliquez pour voir la réponse</p>
+                            </div>
+                        </div>
+                        <div class="flashcard-back">
+                            <div class="text-center">
+                                <h4 class="text-xl font-bold mb-4">Réponse</h4>
+                                <p class="text-lg">${flashcard.answer}</p>
+                                <p class="text-sm mt-4 opacity-75">Cliquez pour retourner</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+            
+            // Mise à jour des boutons de navigation
+            document.getElementById('current-flashcard').textContent = currentFlashcardIndex + 1;
+            document.getElementById('prev-flashcard').disabled = currentFlashcardIndex === 0;
+            document.getElementById('next-flashcard').disabled = currentFlashcardIndex === flashcards.length - 1;
+        }
+
+        // Retournement de flashcard
+        function flipFlashcard(element) {
+            element.classList.toggle('flipped');
+        }
+
+        // Téléchargement de l'analyse
+        async function downloadAnalysis() {
+            if (!analysisData.session_id) {
+                showError('Aucune analyse à télécharger');
+                return;
+            }
+            
+            try {
+                const response = await fetch(`/download/${analysisData.session_id}`);
+                const data = await response.json();
+                
+                if (data.success) {
+                    const blob = new Blob([data.content], { type: 'text/plain' });
+                    const url = window.URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = data.filename;
+                    a.click();
+                    window.URL.revokeObjectURL(url);
+                } else {
+                    throw new Error(data.error);
+                }
+            } catch (error) {
+                showError(`Erreur de téléchargement: ${error.message}`);
+            }
+        }
+
+        // Reset de l'analyse
+        function resetAnalysis() {
+            currentFile = null;
+            analysisData = {};
+            flashcards = [];
+            quizData = {};
+            currentFlashcardIndex = 0;
+            currentQuizLevel = null;
+            currentQuestionIndex = 0;
+            
+            elements.resultsSection.classList.add('hidden');
+            elements.uploadSection.classList.remove('hidden');
+            elements.imagePreviewContainer.classList.add('hidden');
+            elements.optionsSection.classList.add('hidden');
+            elements.fileInput.value = '';
+            elements.analyzeButton.disabled = true;
+            
+            hideError();
+        }
+
+        // Gestion des erreurs
+        function showError(message) {
+            document.getElementById('error-message').textContent = message;
+            elements.errorSection.classList.remove('hidden');
+        }
+
+        function hideError() {
+            elements.errorSection.classList.add('hidden');
+        }
+
+        // Fonctions utilitaires globales (accessibles depuis les événements inline)
+        window.flipFlashcard = flipFlashcard;
+    </script>
+</body>
+</html>
