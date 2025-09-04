@@ -16,7 +16,6 @@ from flask import Flask, request, jsonify, send_from_directory
 from PIL import Image, ImageEnhance, ImageFilter
 import io
 import pytesseract
-import cv2
 import numpy as np
 from dotenv import load_dotenv
 import requests
